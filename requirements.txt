@@ -1,3 +1,4 @@
 fastapi
 mysqlclient
 uvicorn
+sqlalchemy
