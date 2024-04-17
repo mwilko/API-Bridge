@@ -101,7 +101,10 @@ def get_db():
 @app.post("/vendors/", response_model=models.Purchasing_Vendor)
 # SQL (INSERT)
 async def add_vendor(business_entity_id: int, name: str, credit_rating: int, preferered_vendor_status: int, active_flag: int = Query(1), web_service: str = Query("NULL")): # parameters, name is required, web_service is optional
-    vendor = models.Purchasing_Vendor(BusinessEntityID=business_entity_id, Name=name, AccountNumber=f'{name.upper()}00001', CreditRating=credit_rating, 
+    account_number = name.replace(" ", "") # removes spaces from the name for the account number
+
+    # formatting account number so its uppercase and formatting datetime.now() so miliseconds are removed
+    vendor = models.Purchasing_Vendor(BusinessEntityID=business_entity_id, Name=name, AccountNumber=f'{account_number.upper()}0001', CreditRating=credit_rating, 
                                       PreferredVendorStatus=preferered_vendor_status , ActiveFlag=active_flag, PurchasingWebServiceURL=web_service, ModifiedDate=f'{dt.now().strftime("%Y-%m-%d %H:%M:%S")}')
     # try catch statment to catch any errors (needs more exeptions or better handling)
     try:
@@ -114,6 +117,18 @@ async def add_vendor(business_entity_id: int, name: str, credit_rating: int, pre
             raise HTTPException(status_code=400, detail=f"Duplicate Entry Error: {e}")
         else:
             raise HTTPException(status_code=400, detail=f"Error: {e}")
+        return {"item"}
+
+@app.put("/vendors/{business_entity_id}/update_active_flag", response_model=models.Purchasing_Vendor)
+async def update_vendor_active_flag(business_entity_id: int, active_flag: int):
+    try:
+        updated = crud.update_vendor_active_flag(business_entity_id, active_flag)
+        return updated
+    except HTTPException as e:
+        if e.status_code == 404:
+            raise HTTPException(status_code=404, detail="Vendor not found.")
+        else:
+            raise HTTPException(status_code=400, detail="Error: {e}")
         return {"item"}
 
 @app.put("/product_price/{product_id}", response_model=models.Products)
