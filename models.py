@@ -6,7 +6,12 @@ from typing import Optional
 
 # <name>: <data-type> (Pydanitc way to declare types)
 
-# Pydantic model to define the schema of the data for PUT POST DELETE
+# Pydantic model to define the schema of the data for GET PUT POST DELETE
+
+class Users(BaseModel):
+    id: int
+    username: str
+
 class Products(BaseModel):
     ProductID: int 
     Name: str 

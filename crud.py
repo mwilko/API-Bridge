@@ -4,7 +4,14 @@ import models
 import dbConn
 from fastapi import HTTPException
 
-def create_vendor(vendor: models.Purchasing_Vendor):
+def create_user(user: models.Users): # POST endpoint that creates a new user
+    cursor = dbConn.conn.cursor() # create a cursor object using the connection
+    cursor.execute("INSERT INTO Users (id, username) VALUES (%s, %s)", (user.id, user.username))
+    cursor.close() # closes the cursor object (db session)
+    dbConn.conn.commit() # commit the transaction
+    return {"id": user.id, "username": user.username}
+
+def create_vendor(vendor: models.Purchasing_Vendor): # POST endpoint that creates a new vendor
     # Create Pydantic model instance
     cursor = dbConn.conn.cursor() # create a cursor object using the connection
     cursor.execute("INSERT INTO Purchasing_Vendor (BusinessEntityID, Name, AccountNumber, CreditRating, PreferredVendorStatus, " +
@@ -18,14 +25,12 @@ def create_vendor(vendor: models.Purchasing_Vendor):
             "AccountNumber": vendor.AccountNumber, "CreditRating": vendor.CreditRating,
             "PreferredVendorStatus": vendor.PreferredVendorStatus, "ActiveFlag": vendor.ActiveFlag,"PurchasingWebServiceURL": vendor.PurchasingWebServiceURL, "ModifiedDate": vendor.ModifiedDate}
 
-def update_vendor_active_flag(business_entity_id: int, active_flag: int):
+def update_vendor_active_flag(vendor: models.Purchasing_Vendor):
     cursor = dbConn.conn.cursor()
-    cursor.execute("UPDATE Purchasing_Vendor SET ActiveFlag = %s WHERE BusinessEntityID = %s", (active_flag, business_entity_id,))
-    if cursor.rowcount == 0:
-        cursor.close()
-        raise HTTPException(status_code=404, detail="Vendor not found")
+    cursor.execute("UPDATE Purchasing_Vendor SET ActiveFlag = %s WHERE BusinessEntityID = %s", (vendor.ActiveFlag, vendor.BusinessEntityID))
     cursor.close()
-    return {"BusinessEntityID": business_entity_id, "ActiveFlag": active_flag}
+    dbConn.conn.commit()
+    return {"BusinessEntityID": vendor.BusinessEntityID, "ActiveFlag": vendor.ActiveFlag}
 
 # PUT endpoint that updates the price of a specific product
 def update_product_price(product_id: int, price: float):

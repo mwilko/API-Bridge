@@ -37,21 +37,6 @@ def get_db():
 #     result = cursor.fetchall()
 #     return {"products": result}
     
-# # Route to return 50 products (MAX) from the production_product table via a GET request (no parameters used) using a Pydantic Datamodel
-    
-# @app.get("/products/all", response_model=List[models.Products])
-# def read_item():
-#     cursor = conn.cursor()
-#     query = "SELECT ProductID, Name FROM Production_Product LIMIT 50"
-#     cursor.execute(query)
-      
-#     item = cursor.fetchall()
-#     cursor.close()
-#     if item is None:
-#         raise HTTPException(status_code=404, detail="Item not found")
-#     item = [models.Products(ProductID=productitem[0], Name=productitem[1]) for productitem in item]
-#     return item
-
 # # Route to return a specific product from the production_product table item via a GET request using a parameter (ProductID)
 # @app.get("/products/{product_id}", response_model=models.Products)
 # # SQL (SELECT)
@@ -95,6 +80,40 @@ def get_db():
 
 # What i added below
 
+# GET x2: One with parameters, one without
+# POST x2: Inserts into table, needs suitable parameters
+# PUT x2: Updates into table, needs suitable parameters
+# DELETE x2: Deletes from table, needs suitable parameters
+
+# # Route to return 50 products (MAX) from the production_product table via a GET request (no parameters used) using a Pydantic Datamodel
+@app.get("/products/all", response_model=List[models.Products])
+def read_item():
+    cursor = conn.cursor()
+    query = "SELECT ProductID, Name FROM Production_Product LIMIT 50"
+    cursor.execute(query)
+      
+    item = cursor.fetchall()
+    cursor.close()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    item = [models.Products(ProductID=productitem[0], Name=productitem[1]) for productitem in item]
+    return {"item": item}
+
+@app.post("/add-user/{id}", response_model=models.Users)
+async def add_user(id: int, username: str):
+    user = models.Users(id=id, username=username)
+    try:
+        created_user = crud.create_user(user)
+        return created_user
+    except Exception as e:
+        if created_user is None or created_user == "":
+            raise HTTPException(status_code=400, detail="Username must be provided.")
+        if e == "Duplicate entry":
+            raise HTTPException(status_code=400, detail="Duplicate Entry Error: {e}")
+        else:
+            raise HTTPException(status_code=400, detail="Error: {e}")
+    return {"id": id, "username": username}
+
 # Async def is used to define a function that will run asynchronously. 
 
 # added functionality, may need to edit for better scalability
@@ -119,10 +138,11 @@ async def add_vendor(business_entity_id: int, name: str, credit_rating: int, pre
             raise HTTPException(status_code=400, detail=f"Error: {e}")
         return {"item"}
 
-@app.put("/vendors/{business_entity_id}/update_active_flag", response_model=models.Purchasing_Vendor)
+@app.put("/update-vendor-active-flag/{business_entity_id}/{active_flag}")
 async def update_vendor_active_flag(business_entity_id: int, active_flag: int):
+    vendor = models.Purchasing_Vendor(BusinessEntityID=business_entity_id, ActiveFlag=active_flag)
     try:
-        updated = crud.update_vendor_active_flag(business_entity_id, active_flag)
+        updated = crud.update_vendor_active_flag(vendor)
         return updated
     except HTTPException as e:
         if e.status_code == 404:
