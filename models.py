@@ -3,6 +3,7 @@
 
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime as dt
 
 # <name>: <data-type> (Pydanitc way to declare types)
 
@@ -15,6 +16,19 @@ class Users(BaseModel):
 class Products(BaseModel):
     ProductID: int 
     Name: str 
+
+class Sales_SalesOrderDetail(BaseModel):
+    SalesOrderID: int
+    SalesOrderDetailID: int
+    CarrierTrackingNumber: Optional[str] 
+    OrderQty: int
+    ProductID: int
+    SpecialOfferID: int
+    UnitPrice: float
+    UnitPriceDiscount: float
+    LineTotal: float
+    rowguid: str
+    ModifiedDate: dt
 
 class Purchasing_Vendor(BaseModel):
     BusinessEntityID: int # Primary Key

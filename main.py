@@ -1,5 +1,5 @@
 from itertools import product
-from fastapi import FastAPI, HTTPException, Depends, status, Query
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Path
 from typing import List, Optional
 from datetime import datetime as dt
 
@@ -84,20 +84,40 @@ def get_db():
 # POST x2: Inserts into table, needs suitable parameters
 # PUT x2: Updates into table, needs suitable parameters
 # DELETE x2: Deletes from table, needs suitable parameters
+        
+# Async def is used to define a function that will run asynchronously. 
 
 # # Route to return 50 products (MAX) from the production_product table via a GET request (no parameters used) using a Pydantic Datamodel
-@app.get("/products/all", response_model=List[models.Products])
-def read_item():
-    cursor = conn.cursor()
-    query = "SELECT ProductID, Name FROM Production_Product LIMIT 50"
-    cursor.execute(query)
-      
-    item = cursor.fetchall()
-    cursor.close()
-    if item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    item = [models.Products(ProductID=productitem[0], Name=productitem[1]) for productitem in item]
-    return {"item": item}
+@app.get("/products-all", response_model=List[models.Products]) # GET endpoint without parameters, returns all products
+def get_all_products():
+    product_list = crud.all_products(models.Products)
+    if product_list is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    product_list = [models.Products(ProductID=productitem[0], Name=productitem[1]) for productitem in product_list]
+    return product_list  # return list directly
+
+@app.get("/sales-order-details/{modified_date}", response_model=List[models.Sales_SalesOrderDetail]) 
+def get_sales_order_details(modified_date: dt = Path(..., description="Format: YYYY-MM-DD")):
+    formatted_date = modified_date.strftime('%Y-%m-%d')  # Format the date to only include year, month, and day
+    order_details = crud.product_sales(formatted_date)  # Pass the formatted date
+    if order_details is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    order_details = [
+        models.Sales_SalesOrderDetail(
+            SalesOrderID=order[0],
+            SalesOrderDetailID=order[1],
+            CarrierTrackingNumber=order[2],
+            OrderQty=order[3],
+            ProductID=order[4],
+            SpecialOfferID=order[5],
+            UnitPrice=order[6],
+            UnitPriceDiscount=order[7],
+            LineTotal=order[8],
+            rowguid=order[9],
+            ModifiedDate=order[10]
+        ) for order in order_details
+    ]
+    return order_details
 
 @app.post("/add-user/{id}", response_model=models.Users)
 async def add_user(id: int, username: str):
@@ -114,10 +134,8 @@ async def add_user(id: int, username: str):
             raise HTTPException(status_code=400, detail="Error: {e}")
     return {"id": id, "username": username}
 
-# Async def is used to define a function that will run asynchronously. 
-
 # added functionality, may need to edit for better scalability
-@app.post("/vendors/", response_model=models.Purchasing_Vendor)
+@app.post("/vendors/{business_entity_id}", response_model=models.Purchasing_Vendor)
 # SQL (INSERT)
 async def add_vendor(business_entity_id: int, name: str, credit_rating: int, preferered_vendor_status: int, active_flag: int = Query(1), web_service: str = Query("NULL")): # parameters, name is required, web_service is optional
     account_number = name.replace(" ", "") # removes spaces from the name for the account number
@@ -161,7 +179,7 @@ def update_product_price(product_id: int, price: float):
     
 @app.delete("/hr_jobcandidate/{jobcandidate_id}", response_model=models.HumanResources_JobCandidate)
 # SQL (DELETE)
-def delete_jobcandidate(jobcandidate_id: int):
+def delete_job_candidate(jobcandidate_id: int):
     crud.delete_jobcandidate(jobcandidate_id)
     if jobcandidate_id not in models.HumanResources_JobCandidate:
         raise HTTPException(status_code=400, detail="Job Candidate not found.")
