@@ -5,22 +5,31 @@ import dbConn
 from fastapi import HTTPException
 from datetime import datetime as dt
 
-def all_products(items: models.Products):
+#----------------------------------------------------------
+# GET endpoints
+#----------------------------------------------------------
+
+def all_products(items: models.Products): # GET endpoint that returns all products
     cursor = dbConn.conn.cursor()
     query = "SELECT ProductID, Name FROM Production_Product" # add LIMIT <amount> (if want to limit the response)
     cursor.execute(query)
     item = cursor.fetchall()
-    cursor.close()
-    return item
+    cursor.close() 
+    return item # returns all products
 
 # function was edited to use only date, not date and time.
 def product_sales(formatted_date: str): # GET endpoint that returns all sales for a specific date
     cursor = dbConn.conn.cursor()
-    query = "SELECT * FROM Sales_SalesOrderDetail WHERE DATE(ModifiedDate) = %s"
+    # limited to 50 because if the response is too much, the program would output a error
+    query = "SELECT * FROM Sales_SalesOrderDetail WHERE DATE(ModifiedDate) = %s LIMIT 50"
     cursor.execute(query, (formatted_date,))
     result = cursor.fetchall()
     cursor.close()
-    return result
+    return result # return all sales for a specific date (LIMIT 50)
+
+#----------------------------------------------------------
+# POST endpoints
+#----------------------------------------------------------
 
 def create_user(user: models.Users): # POST endpoint that creates a new user
     cursor = dbConn.conn.cursor() # create a cursor object using the connection
@@ -44,6 +53,10 @@ def create_vendor(vendor: models.Purchasing_Vendor):
             "AccountNumber": vendor.AccountNumber, "CreditRating": vendor.CreditRating,
             "PreferredVendorStatus": vendor.PreferredVendorStatus, "ActiveFlag": vendor.ActiveFlag,"PurchasingWebServiceURL": vendor.PurchasingWebServiceURL, "ModifiedDate": vendor.ModifiedDate}
 
+#----------------------------------------------------------
+# PUT endpoints
+#----------------------------------------------------------
+
 def update_vendor_active_flag(vendor: models.Purchasing_Vendor):
     cursor = dbConn.conn.cursor()
     query = ("UPDATE Purchasing_Vendor SET ActiveFlag = %s WHERE BusinessEntityID = %s")
@@ -60,6 +73,10 @@ def update_product_price(product_id: int, price: float):
     cursor.execute(query, (price, product_id))
     cursor.close() # closes the cursor object (db session)
     return {"message": "Price updated successfully"}
+
+#----------------------------------------------------------
+# DELETE endpoints
+#----------------------------------------------------------
 
 # DELETE endpoint that deletes a specific product
 def delete_jobcandidate(jobcandidate_id: int):

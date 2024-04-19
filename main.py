@@ -87,12 +87,16 @@ def get_db():
         
 # Async def is used to define a function that will run asynchronously. 
 
+#----------------------------------------------------------
+# GET endpoints
+#----------------------------------------------------------
+
 # # Route to return 50 products (MAX) from the production_product table via a GET request (no parameters used) using a Pydantic Datamodel
 @app.get("/products-all", response_model=List[models.Products]) # GET endpoint without parameters, returns all products
 def get_all_products():
     product_list = crud.all_products(models.Products)
     if product_list is None:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail="Error: No Products Found.")
     product_list = [models.Products(ProductID=productitem[0], Name=productitem[1]) for productitem in product_list]
     return product_list  # return list directly
 
@@ -103,6 +107,7 @@ def get_sales_order_details(modified_date: dt = Path(..., description="Format: Y
     if order_details is None:
         raise HTTPException(status_code=404, detail="Product not found")
     order_details = [
+        # for each data row, insert the corresponding data into 
         models.Sales_SalesOrderDetail(
             SalesOrderID=order[0],
             SalesOrderDetailID=order[1],
@@ -117,7 +122,11 @@ def get_sales_order_details(modified_date: dt = Path(..., description="Format: Y
             ModifiedDate=order[10]
         ) for order in order_details
     ]
-    return order_details
+    return order_details # return list directly
+
+#----------------------------------------------------------
+# POST endpoints
+#----------------------------------------------------------
 
 @app.post("/add-user/{id}", response_model=models.Users)
 async def add_user(id: int, username: str):
@@ -154,7 +163,11 @@ async def add_vendor(business_entity_id: int, name: str, credit_rating: int, pre
             raise HTTPException(status_code=400, detail=f"Duplicate Entry Error: {e}")
         else:
             raise HTTPException(status_code=400, detail=f"Error: {e}")
-        return {"item"}
+        return {"vendor": vendor}
+
+#----------------------------------------------------------
+# PUT endpoints
+#----------------------------------------------------------
 
 @app.put("/update-vendor-active-flag/{business_entity_id}/{active_flag}")
 async def update_vendor_active_flag(business_entity_id: int, active_flag: int):
@@ -177,7 +190,11 @@ def update_product_price(product_id: int, price: float):
         raise HTTPException(status_code=400, detail="Product ID must be greater than 0.")
         return {"item"}
     
-@app.delete("/hr_jobcandidate/{jobcandidate_id}", response_model=models.HumanResources_JobCandidate)
+#----------------------------------------------------------
+# DELETE endpoints
+#----------------------------------------------------------
+
+@app.delete("/delete-job-candidate/{jobcandidate_id}", response_model=models.HumanResources_JobCandidate)
 # SQL (DELETE)
 def delete_job_candidate(jobcandidate_id: int):
     crud.delete_jobcandidate(jobcandidate_id)

@@ -20,7 +20,7 @@ class Products(BaseModel):
 class Sales_SalesOrderDetail(BaseModel):
     SalesOrderID: int
     SalesOrderDetailID: int
-    CarrierTrackingNumber: Optional[str] 
+    CarrierTrackingNumber: Optional[str] # optional due to NULL values in the db
     OrderQty: int
     ProductID: int
     SpecialOfferID: int
@@ -31,7 +31,7 @@ class Sales_SalesOrderDetail(BaseModel):
     ModifiedDate: dt
 
 class Purchasing_Vendor(BaseModel):
-    BusinessEntityID: int # Primary Key
+    BusinessEntityID: int # Primary Key (not auto incremented)
     AccountNumber: str
     Name: str
     CreditRating: int
