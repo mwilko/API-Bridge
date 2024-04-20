@@ -9,13 +9,13 @@ from datetime import datetime as dt
 # GET endpoints
 #----------------------------------------------------------
 
-def all_products(items: models.Products): # GET endpoint that returns all products
+def all_product_inventory(): # GET endpoint that returns all products
     cursor = dbConn.conn.cursor()
-    query = "SELECT ProductID, Name FROM Production_Product" # add LIMIT <amount> (if want to limit the response)
+    query = "SELECT * FROM Production_ProductInventory"
     cursor.execute(query)
-    item = cursor.fetchall()
-    cursor.close() 
-    return item # returns all products
+    result = cursor.fetchall()
+    cursor.close()
+    return result
 
 # function was edited to use only date, not date and time.
 def product_sales(formatted_date: str): # GET endpoint that returns all sales for a specific date

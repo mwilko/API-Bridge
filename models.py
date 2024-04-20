@@ -17,6 +17,15 @@ class Products(BaseModel):
     ProductID: int 
     Name: str 
 
+class Production_ProductInventory(BaseModel):
+    ProductID: int
+    LocationID: int
+    Shelf: str
+    Bin: int
+    Quantity: int
+    rowguid: str
+    ModifiedDate: dt
+
 class Sales_SalesOrderDetail(BaseModel):
     SalesOrderID: int
     SalesOrderDetailID: int

@@ -3,10 +3,15 @@ from fastapi import FastAPI, HTTPException, Depends, status, Query, Path
 from typing import List, Optional
 from datetime import datetime as dt
 
+# Caching call responses
+from fastapi.responses import Response
+
 from dbConn import conn
 import models
 import crud
     
+# TODO: Configure the database connection to connect in the Uni Lab machines
+
 app = FastAPI()
 
 # Dependency
@@ -23,85 +28,42 @@ def get_db():
     finally: # exit is executed even if there was an exception
         db.close()
 
-# TODO: Configure the database connection to connect in the Uni Lab machines
-     
-# @app.get("/")
-# def root():
-#     return {"message": "Introducing my coursework"}
-
-# # Route to return 50 products (MAX) from the production_product table via a GET request (no parameters used) without using a datamodel
-# @app.get("/products/allnomdel")
-# def get_all_products():
-#     cursor = conn.cursor() # cursor is a pointer to the database
-#     cursor.execute("SELECT ProductID, Name FROM Production_Product LIMIT 50")
-#     result = cursor.fetchall()
-#     return {"products": result}
-    
-# # Route to return a specific product from the production_product table item via a GET request using a parameter (ProductID)
-# @app.get("/products/{product_id}", response_model=models.Products)
-# # SQL (SELECT)
-# def read_item(product_id: int):
-#     cursor = conn.cursor()
-#     # %s is a placeholder for the product_id value
-#     query = "SELECT ProductID, Name FROM Production_Product WHERE ProductID=%s"
-#     cursor.execute(query, (product_id,))
-#     item = cursor.fetchone()
-#     cursor.close()
-#     if item is None:
-#         raise HTTPException(status_code=404, detail="Item not found")
-#     return {"ProductID": item[0], "Name": item[1]}
-
-# @app.post("/products/{product_id}", response_model=models.Products)
-# # SQL (INSERT)
-# def add_item(product_name: str, product_id: int):
-#     cursor = conn.cursor()
-#     query = "INSERT INTO Production_Product(ProductID, Name) VALUES (%s, %s)"
-#     if product_id <= 0:
-#         raise HTTPException(status_code=400, detail="Quantity must be greater than 0.")
-#         return {"item"}
-    
-# @app.put("/products/{product_id}", response_model=models.Products)
-# # SQL (UPDATE)
-# def add_item(product_name: str, product_id: int):
-#     cursor = conn.cursor()
-#     query = "UPDATE Production_Product SET Name = %s WHERE ProductID = %s"
-#     if product_id <= 0:
-#         raise HTTPException(status_code=400, detail="Quantity must be greater than 0.")
-#         return {"item"}
-    
-# @app.delete("/products/{product_id}", response_model=models.Products)
-# # SQL (DELETE)
-# def delete_item(product_id: int):
-#     cursor = conn.cursor()
-#     if product_id not in models.Products:
-#         raise HTTPException(status_code=400, detail="product not found.")
-#         return {"item"}
-
-
-# What i added below
-
 # GET x2: One with parameters, one without
 # POST x2: Inserts into table, needs suitable parameters
 # PUT x2: Updates into table, needs suitable parameters
 # DELETE x2: Deletes from table, needs suitable parameters
-        
-# Async def is used to define a function that will run asynchronously. 
 
 #----------------------------------------------------------
 # GET endpoints
 #----------------------------------------------------------
 
 # # Route to return 50 products (MAX) from the production_product table via a GET request (no parameters used) using a Pydantic Datamodel
-@app.get("/products-all", response_model=List[models.Products]) # GET endpoint without parameters, returns all products
-def get_all_products():
-    product_list = crud.all_products(models.Products)
-    if product_list is None:
+@app.get("/all-product-inventory", response_model=List[models.Production_ProductInventory])
+def product_inventory(response: Response):
+    product_inventory_list = crud.all_product_inventory()
+    if product_inventory_list is None:
         raise HTTPException(status_code=404, detail="Error: No Products Found.")
-    product_list = [models.Products(ProductID=productitem[0], Name=productitem[1]) for productitem in product_list]
-    return product_list  # return list directly
+    product_inventory_list = [
+        models.Production_ProductInventory(
+            ProductID=item[0], 
+            LocationID=item[1], 
+            Shelf=item[2], 
+            Bin=item[3], 
+            Quantity=item[4], 
+            rowguid=item[5], 
+            ModifiedDate=item[6]
+        ) for item in product_inventory_list
+    ]
+
+    print("Products returned from database...")  # if cache is empty
+
+    # Caching the response for 60 secs
+    response.headers["Cache-Control"] = "max-age=60"  # response header seen by client on Swagger UI
+
+    return product_inventory_list  # return list directly
 
 @app.get("/sales-order-details/{modified_date}", response_model=List[models.Sales_SalesOrderDetail]) 
-def get_sales_order_details(modified_date: dt = Path(..., description="Format: YYYY-MM-DD")):
+def get_sales_order_details(response: Response, modified_date: dt = Path(..., description="Format: YYYY-MM-DD")):
     formatted_date = modified_date.strftime('%Y-%m-%d')  # Format the date to only include year, month, and day
     order_details = crud.product_sales(formatted_date)  # Pass the formatted date
     if order_details is None:
@@ -122,6 +84,8 @@ def get_sales_order_details(modified_date: dt = Path(..., description="Format: Y
             ModifiedDate=order[10]
         ) for order in order_details
     ]
+    # cache-control header, not cachable
+    response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
     return order_details # return list directly
 
 #----------------------------------------------------------
@@ -129,10 +93,11 @@ def get_sales_order_details(modified_date: dt = Path(..., description="Format: Y
 #----------------------------------------------------------
 
 @app.post("/add-user/{id}", response_model=models.Users)
-async def add_user(id: int, username: str):
+def add_user(response: Response, id: int, username: str):
     user = models.Users(id=id, username=username)
     try:
         created_user = crud.create_user(user)
+        response.headers["Cache-Control"] = "no-store" # no need to cache this response. User data changes frequently
         return created_user
     except Exception as e:
         if created_user is None or created_user == "":
@@ -146,7 +111,7 @@ async def add_user(id: int, username: str):
 # added functionality, may need to edit for better scalability
 @app.post("/vendors/{business_entity_id}", response_model=models.Purchasing_Vendor)
 # SQL (INSERT)
-async def add_vendor(business_entity_id: int, name: str, credit_rating: int, preferered_vendor_status: int, active_flag: int = Query(1), web_service: str = Query("NULL")): # parameters, name is required, web_service is optional
+def add_vendor(response: Response ,business_entity_id: int, name: str, credit_rating: int, preferered_vendor_status: int, active_flag: int = Query(1), web_service: str = Query("NULL")): # parameters, name is required, web_service is optional
     account_number = name.replace(" ", "") # removes spaces from the name for the account number
 
     # formatting account number so its uppercase and formatting datetime.now() so miliseconds are removed
@@ -155,6 +120,7 @@ async def add_vendor(business_entity_id: int, name: str, credit_rating: int, pre
     # try catch statment to catch any errors (needs more exeptions or better handling)
     try:
         created_vendor = crud.create_vendor(vendor)
+        response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
         return created_vendor # needs to return type obj or dict to be valid
     except Exception as e:
         if created_vendor is None or created_vendor == "":
@@ -170,7 +136,7 @@ async def add_vendor(business_entity_id: int, name: str, credit_rating: int, pre
 #----------------------------------------------------------
 
 @app.put("/update-vendor-active-flag/{business_entity_id}/{active_flag}")
-async def update_vendor_active_flag(business_entity_id: int, active_flag: int):
+def update_vendor_active_flag(business_entity_id: int, active_flag: int):
     vendor = models.Purchasing_Vendor(BusinessEntityID=business_entity_id, ActiveFlag=active_flag)
     try:
         updated = crud.update_vendor_active_flag(vendor)
