@@ -2,3 +2,4 @@ fastapi
 mysqlclient
 uvicorn
 sqlalchemy
+typing

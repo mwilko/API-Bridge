@@ -66,7 +66,7 @@ def product_inventory(response: Response):
             return {"error": str(e.detail)}, e.status_code
 
 @app.get("/sales-order-details/{modified_date}", response_model=List[models.Sales_SalesOrderDetail], status_code=200) # status code 200 = OK
-def get_sales_order_details(response: Response, modified_date: dt = Path(..., description="Format: YYYY-MM-DD")):
+def get_sales_order_details(response: Response, modified_date: dt = Path(..., description="Format: YYYY-MM-DD HH:MM:SS")):
     try:
         formatted_date = modified_date.strftime('%Y-%m-%d')  # Format the date to only include year, month, and day
         order_details = crud.product_sales(formatted_date)  # Pass the formatted date
@@ -86,7 +86,7 @@ def get_sales_order_details(response: Response, modified_date: dt = Path(..., de
                 ModifiedDate=order[10]
             ) for order in order_details
         ]
-    except Exception as e:
+    except HTTPException as e:
         if order_details is None:
             raise HTTPException(status_code=404, detail="Product not found")
         else:
@@ -101,19 +101,20 @@ def get_sales_order_details(response: Response, modified_date: dt = Path(..., de
 
 # POST endpoint to create a new user
 @app.post("/add-bill-of-materials/{bill_of_materials_id}", status_code=201) # status code 201 = created
-def add_user(response: Response, bill_of_materials_id: int, component_id: int, start_date: dt, unit_measure_code: str,
-     bom_level: int, per_assembly_qty: int, product_assembly_id: int = Query(None), end_date: dt = Query(None)):
+def add_bill_of_materials(response: Response, bill_of_materials_id: int, component_id: int, unit_measure_code: str,
+     bom_level: int, per_assembly_qty: int, start_date: dt = Path(..., description="Format: YYYY-MM-DD HH:MM:SS"), product_assembly_id: int = Query(None), end_date: dt = Query(None)):
     
     bill_of_mats = models.Production_BillOfMaterials(BillOfMaterialsID=bill_of_materials_id, ProductAssemblyID=product_assembly_id, ComponentID=component_id, StartDate=start_date,
                 EndDate=end_date, UnitMeasureCode=unit_measure_code, BOMLevel=bom_level, PerAssemblyQty=per_assembly_qty, ModifiedDate=f'{dt.now().strftime("%Y-%m-%d %H:%M:%S")}')
-    try:
+    try: # try catch statment to catch any errors
         created_bill_of_mats = crud.create_bill_of_materials(bill_of_mats)
         response.headers["Cache-Control"] = "no-store" # no need to cache this response. User data changes frequently
         return created_bill_of_mats
-    except IntegrityError:
-        raise HTTPException(status_code=400, detail="This Bill Of Materials has already been entered.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException as e:
+        if created_bill_of_mats is None or created_bill_of_mats == "":
+            raise HTTPException(status_code=404, detail=f"Bill of materials not found.")
+        else:
+            return {"error": str(e.detail)}, e.status_code
 
 # added functionality, may need to edit for better scalability
 @app.post("/vendors/{business_entity_id}", response_model=models.Purchasing_Vendor, status_code=201) # status code 201 = created
@@ -124,7 +125,7 @@ def add_vendor(response: Response ,business_entity_id: int, name: str, credit_ra
     # formatting account number so its uppercase and formatting datetime.now() so miliseconds are removed
     vendor = models.Purchasing_Vendor(BusinessEntityID=business_entity_id, Name=name, AccountNumber=f'{account_number.upper()}0001', CreditRating=credit_rating, 
                                       PreferredVendorStatus=preferered_vendor_status , ActiveFlag=active_flag, PurchasingWebServiceURL=web_service, ModifiedDate=f'{dt.now().strftime("%Y-%m-%d %H:%M:%S")}')
-    # try catch statment to catch any errors (needs more exeptions or better handling)
+    # try catch statment to catch any errors
     try:
         created_vendor = crud.create_vendor(vendor)
         response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
@@ -142,12 +143,12 @@ def add_vendor(response: Response ,business_entity_id: int, name: str, credit_ra
 # PUT endpoint to update the active flag of a vendor
 @app.put("/update-active-flag/{active_flag}/vendor-id/{business_entity_id}", status_code=200) # pydantic model not used because its required to use all fields
 def update_vendor_active_flag(response: Response, business_entity_id: int, active_flag: int):
-    try:
+    try: # try catch statment to catch any errors
         updated = crud.update_vendor_active_flag(business_entity_id, active_flag)
         response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
         return updated
     except HTTPException as e:
-        if e.status_code == 404:
+        if updated is None or updated == "":
             raise HTTPException(status_code=404, detail="Vendor not found.")
         else:
             return {"error": str(e.detail)}, e.status_code
@@ -155,17 +156,18 @@ def update_vendor_active_flag(response: Response, business_entity_id: int, activ
 @app.put("/update-credit-card/{business_entity_id}", response_model=models.Sales_PersonCreditCard, status_code=200) # status code 200 = OK
 # SQL (UPDATE)
 def update_person_credit_card(response: Response, business_entity_id: int, credit_card_id: int):
+    # Save data to pydantic model variables
     person_credit_card = models.Sales_PersonCreditCard(
         BusinessEntityID=business_entity_id, 
         CreditCardID=credit_card_id, 
-        ModifiedDate=dt.now().isoformat()  # Convert datetime to ISO 8601 string
+        ModifiedDate=f'{dt.now().strftime("%Y-%m-%d %H:%M:%S")}' # current date formatted with h, m, s
     )
     try:
         updated = crud.update_person_credit_card(person_credit_card)
         response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
         return updated
     except HTTPException as e:
-        if e.status_code == 404:
+        if updated is None or updated == "":
             raise HTTPException(status_code=404, detail="Person or Credit Card not found.")
         else:
             return {"error": str(e.detail)}, e.status_code
@@ -177,12 +179,15 @@ def update_person_credit_card(response: Response, business_entity_id: int, credi
 @app.delete("/delete-job-candidate/{jobcandidate_id}", status_code=200) # status code 200 = OK
 # SQL (DELETE)
 def delete_job_candidate(response: Response, jobcandidate_id: int):
-    crud.delete_jobcandidate(jobcandidate_id)
-    response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
-    if jobcandidate_id is None:
-        raise HTTPException(status_code=404, detail="Job Candidate not found.")
-        return {"item"}
-    
+    try:
+        crud.delete_jobcandidate(jobcandidate_id)
+        response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
+    except HTTPException as e:
+        if jobcandidate_id is None:
+            raise HTTPException(status_code=404, detail="Job Candidate not found.")
+        else:
+            return {"error": str(e.detail)}, e.status_code
+            
 @app.delete("/delete-bill-of-materials/{bill_of_materials_id}", status_code=200) # status code 200 = OK
 # SQL (DELETE)
 def delete_bill_of_materials(response: Response, bill_of_materials_id: int):
@@ -190,7 +195,7 @@ def delete_bill_of_materials(response: Response, bill_of_materials_id: int):
         crud.delete_bill_of_materials(bill_of_materials_id)
         response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
     except HTTPException as e:    
-        if id is None:
+        if bill_of_materials_id is None:
             raise HTTPException(status_code=404, detail="Bill information not found.")
         else:
             return {"error": str(e.detail)}, e.status_code
