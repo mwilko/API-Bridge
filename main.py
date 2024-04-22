@@ -59,7 +59,6 @@ def product_inventory(response: Response):
 
     # Caching the response for 60 secs
     response.headers["Cache-Control"] = "max-age=60"  # response header seen by client on Swagger UI
-
     return product_inventory_list  # return list directly
 
 @app.get("/sales-order-details/{modified_date}", response_model=List[models.Sales_SalesOrderDetail]) 
@@ -85,7 +84,7 @@ def get_sales_order_details(response: Response, modified_date: dt = Path(..., de
         ) for order in order_details
     ]
     # cache-control header, not cachable
-    response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
+    response.headers["Cache-Control"] = "max-age=60" # not cacheable because it changes frequently
     return order_details # return list directly
 
 #----------------------------------------------------------
@@ -137,9 +136,10 @@ def add_vendor(response: Response ,business_entity_id: int, name: str, credit_ra
 
 # PUT endpoint to update the active flag of a vendor
 @app.put("/update-active-flag/{active_flag}/vendor-id/{business_entity_id}") # pydantic model not used because its required to use all fields
-def update_vendor_active_flag(business_entity_id: int, active_flag: int):
+def update_vendor_active_flag(response: Response, business_entity_id: int, active_flag: int):
     try:
         updated = crud.update_vendor_active_flag(business_entity_id, active_flag)
+        response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
         return updated
     except HTTPException as e:
         if e.status_code == 404:
@@ -149,7 +149,7 @@ def update_vendor_active_flag(business_entity_id: int, active_flag: int):
 
 @app.put("/update-credit-card/{business_entity_id}", response_model=models.Sales_PersonCreditCard)
 # SQL (UPDATE)
-def update_person_credit_card(business_entity_id: int, credit_card_id: int):
+def update_person_credit_card(response: Response, business_entity_id: int, credit_card_id: int):
     person_credit_card = models.Sales_PersonCreditCard(
         BusinessEntityID=business_entity_id, 
         CreditCardID=credit_card_id, 
@@ -157,6 +157,7 @@ def update_person_credit_card(business_entity_id: int, credit_card_id: int):
     )
     try:
         updated = crud.update_person_credit_card(person_credit_card)
+        response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
         return updated
     except HTTPException as e:
         if e.status_code == 404:
@@ -170,16 +171,19 @@ def update_person_credit_card(business_entity_id: int, credit_card_id: int):
 
 @app.delete("/delete-job-candidate/{jobcandidate_id}")
 # SQL (DELETE)
-def delete_job_candidate(jobcandidate_id: int):
+def delete_job_candidate(response: Response, jobcandidate_id: int):
     crud.delete_jobcandidate(jobcandidate_id)
+    response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
     if jobcandidate_id is None:
         raise HTTPException(status_code=404, detail="Job Candidate not found.")
         return {"item"}
     
 @app.delete("/delete-employee/{business_entity_id}")
 # SQL (DELETE)
-def delete_employee(business_entity_id: int):
+def delete_employee(response: Response, business_entity_id: int):
     crud.delete_employee(business_entity_id)
+    response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
+    
     if business_entity_id is None:
         raise HTTPException(status_code=404, detail="Employee not found.")
         return {"item"}
