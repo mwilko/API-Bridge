@@ -38,7 +38,7 @@ def get_db():
 #----------------------------------------------------------
 
 # # Route to return 50 products (MAX) from the production_product table via a GET request (no parameters used) using a Pydantic Datamodel
-@app.get("/all-product-inventory", response_model=List[models.Production_ProductInventory])
+@app.get("/all-product-inventory", response_model=List[models.Production_ProductInventory], status_code=200) # status code 200 = OK
 def product_inventory(response: Response):
     product_inventory_list = crud.all_product_inventory()
     if product_inventory_list is None:
@@ -61,7 +61,7 @@ def product_inventory(response: Response):
     response.headers["Cache-Control"] = "max-age=60"  # response header seen by client on Swagger UI
     return product_inventory_list  # return list directly
 
-@app.get("/sales-order-details/{modified_date}", response_model=List[models.Sales_SalesOrderDetail]) 
+@app.get("/sales-order-details/{modified_date}", response_model=List[models.Sales_SalesOrderDetail], status_code=200) # status code 200 = OK
 def get_sales_order_details(response: Response, modified_date: dt = Path(..., description="Format: YYYY-MM-DD")):
     formatted_date = modified_date.strftime('%Y-%m-%d')  # Format the date to only include year, month, and day
     order_details = crud.product_sales(formatted_date)  # Pass the formatted date
@@ -91,7 +91,8 @@ def get_sales_order_details(response: Response, modified_date: dt = Path(..., de
 # POST endpoints
 #----------------------------------------------------------
 
-@app.post("/add-user/{id}", response_model=models.Users)
+# POST endpoint to create a new user
+@app.post("/add-user/{id}", response_model=models.Users, status_code=201) # status code 201 = created
 def add_user(response: Response, id: int, username: str):
     user = models.Users(id=id, username=username)
     try:
@@ -108,7 +109,7 @@ def add_user(response: Response, id: int, username: str):
     return {"id": id, "username": username}
 
 # added functionality, may need to edit for better scalability
-@app.post("/vendors/{business_entity_id}", response_model=models.Purchasing_Vendor)
+@app.post("/vendors/{business_entity_id}", response_model=models.Purchasing_Vendor, status_code=201) # status code 201 = created
 # SQL (INSERT)
 def add_vendor(response: Response ,business_entity_id: int, name: str, credit_rating: int, preferered_vendor_status: int, active_flag: int = Query(1), web_service: str = Query("NULL")): # parameters, name is required, web_service is optional
     account_number = name.replace(" ", "") # removes spaces from the name for the account number
@@ -135,7 +136,7 @@ def add_vendor(response: Response ,business_entity_id: int, name: str, credit_ra
 #----------------------------------------------------------
 
 # PUT endpoint to update the active flag of a vendor
-@app.put("/update-active-flag/{active_flag}/vendor-id/{business_entity_id}") # pydantic model not used because its required to use all fields
+@app.put("/update-active-flag/{active_flag}/vendor-id/{business_entity_id}", status_code=200) # pydantic model not used because its required to use all fields
 def update_vendor_active_flag(response: Response, business_entity_id: int, active_flag: int):
     try:
         updated = crud.update_vendor_active_flag(business_entity_id, active_flag)
@@ -147,7 +148,7 @@ def update_vendor_active_flag(response: Response, business_entity_id: int, activ
         else:
             raise HTTPException(status_code=400, detail=f"Error: {e}")
 
-@app.put("/update-credit-card/{business_entity_id}", response_model=models.Sales_PersonCreditCard)
+@app.put("/update-credit-card/{business_entity_id}", response_model=models.Sales_PersonCreditCard, status_code=200) # status code 200 = OK
 # SQL (UPDATE)
 def update_person_credit_card(response: Response, business_entity_id: int, credit_card_id: int):
     person_credit_card = models.Sales_PersonCreditCard(
@@ -169,7 +170,7 @@ def update_person_credit_card(response: Response, business_entity_id: int, credi
 # DELETE endpoints
 #----------------------------------------------------------
 
-@app.delete("/delete-job-candidate/{jobcandidate_id}")
+@app.delete("/delete-job-candidate/{jobcandidate_id}", status_code=200) # status code 200 = OK
 # SQL (DELETE)
 def delete_job_candidate(response: Response, jobcandidate_id: int):
     crud.delete_jobcandidate(jobcandidate_id)
@@ -178,7 +179,7 @@ def delete_job_candidate(response: Response, jobcandidate_id: int):
         raise HTTPException(status_code=404, detail="Job Candidate not found.")
         return {"item"}
     
-@app.delete("/delete-employee/{business_entity_id}")
+@app.delete("/delete-employee/{business_entity_id}", status_code=200) # status code 200 = OK
 # SQL (DELETE)
 def delete_employee(response: Response, business_entity_id: int):
     crud.delete_employee(business_entity_id)
