@@ -2,6 +2,8 @@ from itertools import product
 from fastapi import FastAPI, HTTPException, Depends, status, Query, Path
 from typing import List, Optional
 from datetime import datetime as dt
+from sqlalchemy.exc import IntegrityError
+
 
 # Caching call responses
 from fastapi.responses import Response
@@ -40,49 +42,55 @@ def get_db():
 # # Route to return 50 products (MAX) from the production_product table via a GET request (no parameters used) using a Pydantic Datamodel
 @app.get("/all-product-inventory", response_model=List[models.Production_ProductInventory], status_code=200) # status code 200 = OK
 def product_inventory(response: Response):
-    product_inventory_list = crud.all_product_inventory()
-    if product_inventory_list is None:
-        raise HTTPException(status_code=404, detail="Error: No Products Found.")
-    product_inventory_list = [
-        models.Production_ProductInventory(
-            ProductID=item[0], 
-            LocationID=item[1], 
-            Shelf=item[2], 
-            Bin=item[3], 
-            Quantity=item[4], 
-            rowguid=item[5], 
-            ModifiedDate=item[6]
-        ) for item in product_inventory_list
-    ]
-
-    print("Products returned from database...")  # if cache is empty
-
-    # Caching the response for 60 secs
-    response.headers["Cache-Control"] = "max-age=60"  # response header seen by client on Swagger UI
-    return product_inventory_list  # return list directly
+    try:
+        product_inventory_list = crud.all_product_inventory()
+        product_inventory_list = [
+            models.Production_ProductInventory(
+                ProductID=item[0], 
+                LocationID=item[1], 
+                Shelf=item[2], 
+                Bin=item[3], 
+                Quantity=item[4], 
+                rowguid=item[5], 
+                ModifiedDate=item[6]
+            ) for item in product_inventory_list
+        ]
+        print("Products returned from database...")  # if cache is empty
+        # Caching the response for 60 secs
+        response.headers["Cache-Control"] = "max-age=60"  # response header seen by client on Swagger UI
+        return product_inventory_list  # return list directly
+    except HTTPException as e:
+        if product_inventory_list is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        else:
+            return {"error": str(e.detail)}, e.status_code
 
 @app.get("/sales-order-details/{modified_date}", response_model=List[models.Sales_SalesOrderDetail], status_code=200) # status code 200 = OK
 def get_sales_order_details(response: Response, modified_date: dt = Path(..., description="Format: YYYY-MM-DD")):
-    formatted_date = modified_date.strftime('%Y-%m-%d')  # Format the date to only include year, month, and day
-    order_details = crud.product_sales(formatted_date)  # Pass the formatted date
-    if order_details is None:
-        raise HTTPException(status_code=404, detail="Product not found")
-    order_details = [
-        # for each data row, insert the corresponding data into 
-        models.Sales_SalesOrderDetail(
-            SalesOrderID=order[0],
-            SalesOrderDetailID=order[1],
-            CarrierTrackingNumber=order[2],
-            OrderQty=order[3],
-            ProductID=order[4],
-            SpecialOfferID=order[5],
-            UnitPrice=order[6],
-            UnitPriceDiscount=order[7],
-            LineTotal=order[8],
-            rowguid=order[9],
-            ModifiedDate=order[10]
-        ) for order in order_details
-    ]
+    try:
+        formatted_date = modified_date.strftime('%Y-%m-%d')  # Format the date to only include year, month, and day
+        order_details = crud.product_sales(formatted_date)  # Pass the formatted date
+        order_details = [
+            # for each data row, insert the corresponding data into 
+            models.Sales_SalesOrderDetail(
+                SalesOrderID=order[0],
+                SalesOrderDetailID=order[1],
+                CarrierTrackingNumber=order[2],
+                OrderQty=order[3],
+                ProductID=order[4],
+                SpecialOfferID=order[5],
+                UnitPrice=order[6],
+                UnitPriceDiscount=order[7],
+                LineTotal=order[8],
+                rowguid=order[9],
+                ModifiedDate=order[10]
+            ) for order in order_details
+        ]
+    except Exception as e:
+        if order_details is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        else:
+            return {"error": str(e.detail)}, e.status_code
     # cache-control header, not cachable
     response.headers["Cache-Control"] = "max-age=60" # not cacheable because it changes frequently
     return order_details # return list directly
@@ -92,21 +100,20 @@ def get_sales_order_details(response: Response, modified_date: dt = Path(..., de
 #----------------------------------------------------------
 
 # POST endpoint to create a new user
-@app.post("/add-user/{id}", response_model=models.Users, status_code=201) # status code 201 = created
-def add_user(response: Response, id: int, username: str):
-    user = models.Users(id=id, username=username)
+@app.post("/add-bill-of-materials/{bill_of_materials_id}", status_code=201) # status code 201 = created
+def add_user(response: Response, bill_of_materials_id: int, component_id: int, start_date: dt, unit_measure_code: str,
+     bom_level: int, per_assembly_qty: int, product_assembly_id: int = Query(None), end_date: dt = Query(None)):
+    
+    bill_of_mats = models.Production_BillOfMaterials(BillOfMaterialsID=bill_of_materials_id, ProductAssemblyID=product_assembly_id, ComponentID=component_id, StartDate=start_date,
+                EndDate=end_date, UnitMeasureCode=unit_measure_code, BOMLevel=bom_level, PerAssemblyQty=per_assembly_qty, ModifiedDate=f'{dt.now().strftime("%Y-%m-%d %H:%M:%S")}')
     try:
-        created_user = crud.create_user(user)
+        created_bill_of_mats = crud.create_bill_of_materials(bill_of_mats)
         response.headers["Cache-Control"] = "no-store" # no need to cache this response. User data changes frequently
-        return created_user
+        return created_bill_of_mats
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="This Bill Of Materials has already been entered.")
     except Exception as e:
-        if created_user is None or created_user == "":
-            raise HTTPException(status_code=404, detail="User is not found.")
-        if e == "Duplicate entry":
-            raise HTTPException(status_code=400, detail="Duplicate Entry Error: {e}")
-        else:
-            raise HTTPException(status_code=400, detail="Error: {e}")
-    return {"id": id, "username": username}
+        raise HTTPException(status_code=500, detail=str(e))
 
 # added functionality, may need to edit for better scalability
 @app.post("/vendors/{business_entity_id}", response_model=models.Purchasing_Vendor, status_code=201) # status code 201 = created
@@ -122,14 +129,11 @@ def add_vendor(response: Response ,business_entity_id: int, name: str, credit_ra
         created_vendor = crud.create_vendor(vendor)
         response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
         return created_vendor # needs to return type obj or dict to be valid
-    except Exception as e:
+    except HTTPException as e:
         if created_vendor is None or created_vendor == "":
             raise HTTPException(status_code=404, detail=f"Vendor not found.")
-        if e == "Duplicate entry":
-            raise HTTPException(status_code=400, detail=f"Duplicate Entry Error: {e}")
         else:
-            raise HTTPException(status_code=400, detail=f"Error: {e}")
-        return {"vendor": vendor}
+            return {"error": str(e.detail)}, e.status_code
 
 #----------------------------------------------------------
 # PUT endpoints
@@ -146,7 +150,7 @@ def update_vendor_active_flag(response: Response, business_entity_id: int, activ
         if e.status_code == 404:
             raise HTTPException(status_code=404, detail="Vendor not found.")
         else:
-            raise HTTPException(status_code=400, detail=f"Error: {e}")
+            return {"error": str(e.detail)}, e.status_code
 
 @app.put("/update-credit-card/{business_entity_id}", response_model=models.Sales_PersonCreditCard, status_code=200) # status code 200 = OK
 # SQL (UPDATE)
@@ -164,7 +168,7 @@ def update_person_credit_card(response: Response, business_entity_id: int, credi
         if e.status_code == 404:
             raise HTTPException(status_code=404, detail="Person or Credit Card not found.")
         else:
-            raise HTTPException(status_code=400, detail=f"Error: {e}")
+            return {"error": str(e.detail)}, e.status_code
     
 #----------------------------------------------------------
 # DELETE endpoints
@@ -179,12 +183,14 @@ def delete_job_candidate(response: Response, jobcandidate_id: int):
         raise HTTPException(status_code=404, detail="Job Candidate not found.")
         return {"item"}
     
-@app.delete("/delete-employee/{business_entity_id}", status_code=200) # status code 200 = OK
+@app.delete("/delete-bill-of-materials/{bill_of_materials_id}", status_code=200) # status code 200 = OK
 # SQL (DELETE)
-def delete_employee(response: Response, business_entity_id: int):
-    crud.delete_employee(business_entity_id)
-    response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
-    
-    if business_entity_id is None:
-        raise HTTPException(status_code=404, detail="Employee not found.")
-        return {"item"}
+def delete_bill_of_materials(response: Response, bill_of_materials_id: int):
+    try:
+        crud.delete_bill_of_materials(bill_of_materials_id)
+        response.headers["Cache-Control"] = "no-store" # not cacheable because it changes frequently
+    except HTTPException as e:    
+        if id is None:
+            raise HTTPException(status_code=404, detail="Bill information not found.")
+        else:
+            return {"error": str(e.detail)}, e.status_code

@@ -9,14 +9,6 @@ from datetime import datetime as dt
 
 # Pydantic model to define the schema of the data for GET PUT POST DELETE
 
-class Users(BaseModel):
-    id: int
-    username: str
-
-class Products(BaseModel):
-    ProductID: int 
-    Name: str 
-
 class Production_ProductInventory(BaseModel):
     ProductID: int
     LocationID: int
@@ -60,19 +52,13 @@ class HumanResources_JobCandidate(BaseModel):
     Resume: str
     ModifiedDate: str
 
-class HumanResources_Employee(BaseModel):
-    BusinessEntityID: int
-    NationalIDNumber: str
-    LoginID: str
-    OrganizationNode: str
-    OrganizationLevel: int
-    JobTitle: str
-    BirthDate: dt
-    MaritalStatus: str
-    HireDate: dt
-    SalariedFlag: int
-    VacationHours: int
-    SickLeaveHours: int
-    CurrentFlag: int
-    rowguid: str
+class Production_BillOfMaterials(BaseModel):
+    BillOfMaterialsID: int
+    ProductAssemblyID: Optional[int]
+    ComponentID: int
+    StartDate: dt
+    EndDate: Optional[dt]
+    UnitMeasureCode: str
+    BOMLevel: int
+    PerAssemblyQty: float
     ModifiedDate: dt

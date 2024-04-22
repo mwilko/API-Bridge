@@ -31,13 +31,25 @@ def product_sales(formatted_date: str): # GET endpoint that returns all sales fo
 # POST endpoints
 #----------------------------------------------------------
 
-def create_user(user: models.Users): # POST endpoint that creates a new user
-    cursor = dbConn.conn.cursor() # create a cursor object using the connection
-    query = ("INSERT INTO Users (id, username) VALUES (%s, %s)")
-    cursor.execute(query, (user.id, user.username))
-    cursor.close() # closes the cursor object (db session)
-    dbConn.conn.commit() # commit the transaction
-    return {"id": user.id, "username": user.username}
+def create_bill_of_materials(bill_of_mats: models.Production_BillOfMaterials):
+    try:
+        print(f"Database connection: {dbConn.conn}")
+        cursor = dbConn.conn.cursor()
+        query = """
+        INSERT INTO Production_BillOfMaterials (BillOfMaterialsID, ProductAssemblyID, ComponentID, StartDate, EndDate, UnitMeasureCode, BOMLevel, PerAssemblyQty, ModifiedDate)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        print(f"{query}")
+        cursor.execute(query, (bill_of_mats.BillOfMaterialsID, bill_of_mats.ProductAssemblyID, bill_of_mats.ComponentID, bill_of_mats.StartDate, bill_of_mats.EndDate, bill_of_mats.UnitMeasureCode, bill_of_mats.BOMLevel, bill_of_mats.PerAssemblyQty, bill_of_mats.ModifiedDate))
+        print("committing...")
+        dbConn.conn.commit()
+        cursor.execute("SELECT * FROM Production_BillOfMaterials WHERE BillOfMaterialsID = %s", (bill_of_mats.BillOfMaterialsID,))
+        result = cursor.fetchone()
+        print(f"Inserted record: {result}")
+        cursor.close()
+    except Exception as e:
+        print(f"Exception occurred: {e}")
+    return {"BillOfMaterialsID": bill_of_mats.BillOfMaterialsID, "ProductAssemblyID": bill_of_mats.ProductAssemblyID, "ComponentID": bill_of_mats.ComponentID, "StartDate": bill_of_mats.StartDate, "EndDate": bill_of_mats.EndDate, "UnitMeasureCode": bill_of_mats.UnitMeasureCode, "BOMLevel": bill_of_mats.BOMLevel, "PerAssemblyQty": bill_of_mats.PerAssemblyQty, "ModifiedDate": bill_of_mats.ModifiedDate}
 
 def create_vendor(vendor: models.Purchasing_Vendor): 
     # Create Pydantic model instance
@@ -94,14 +106,10 @@ def delete_jobcandidate(jobcandidate_id: int):
 
 # DELETE endpoint that deletes a specific employee
 # Companies could keep the record up to six years (For possible legal reasons)
-def delete_employee(business_entity_id: int):
+def delete_bill_of_materials(bill_of_materials_id: int):
     cursor = dbConn.conn.cursor()
     # constaints are set in the database to delete the records in the related tables
-    query = "DELETE FROM HumanResources_EmployeeDepartmentHistory WHERE BusinessEntityID = %s"
-    cursor.execute(query, (business_entity_id,))
-    query = "DELETE FROM HumanResources_EmployeePayHistory WHERE BusinessEntityID = %s"
-    cursor.execute(query, (business_entity_id,))
-    query = "DELETE FROM HumanResources_Employee WHERE BusinessEntityID = %s"
-    cursor.execute(query, (business_entity_id,))
+    query = "DELETE FROM Production_BillOfMaterials WHERE BillOfMaterialsID = %s"
+    cursor.execute(query, (bill_of_materials_id,))
     dbConn.conn.commit()
     cursor.close()
