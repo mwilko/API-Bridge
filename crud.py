@@ -9,14 +9,16 @@ from datetime import datetime as dt
 # GET endpoints
 #----------------------------------------------------------
 
+# GET endpoint that returns all prod inventory
 def all_product_inventory(): # GET endpoint that returns all products
     cursor = dbConn.conn.cursor()
     query = "SELECT * FROM Production_ProductInventory"
     cursor.execute(query)
-    result = cursor.fetchall()
+    result = cursor.fetchall() # fetch all the results
     cursor.close()
-    return result
+    return result # return all products
 
+# GET endpoint that returns product sales for a specific date
 # function was edited to use only date, not date and time.
 def product_sales(formatted_date: str): # GET endpoint that returns all sales for a specific date
     cursor = dbConn.conn.cursor()
@@ -31,26 +33,19 @@ def product_sales(formatted_date: str): # GET endpoint that returns all sales fo
 # POST endpoints
 #----------------------------------------------------------
 
+# POST endpoint that creates a bill of materials
 def create_bill_of_materials(bill_of_mats: models.Production_BillOfMaterials):
-    try:
-        print(f"Database connection: {dbConn.conn}")
-        cursor = dbConn.conn.cursor()
-        query = """
-        INSERT INTO Production_BillOfMaterials (BillOfMaterialsID, ProductAssemblyID, ComponentID, StartDate, EndDate, UnitMeasureCode, BOMLevel, PerAssemblyQty, ModifiedDate)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        print(f"{query}")
-        cursor.execute(query, (bill_of_mats.BillOfMaterialsID, bill_of_mats.ProductAssemblyID, bill_of_mats.ComponentID, bill_of_mats.StartDate, bill_of_mats.EndDate, bill_of_mats.UnitMeasureCode, bill_of_mats.BOMLevel, bill_of_mats.PerAssemblyQty, bill_of_mats.ModifiedDate))
-        print("committing...")
-        dbConn.conn.commit()
-        cursor.execute("SELECT * FROM Production_BillOfMaterials WHERE BillOfMaterialsID = %s", (bill_of_mats.BillOfMaterialsID,))
-        result = cursor.fetchone()
-        print(f"Inserted record: {result}")
-        cursor.close()
-    except Exception as e:
-        print(f"Exception occurred: {e}")
+    cursor = dbConn.conn.cursor()
+    query = ("INSERT INTO Production_BillOfMaterials (BillOfMaterialsID, ProductAssemblyID, ComponentID," +
+        "StartDate, EndDate, UnitMeasureCode, BOMLevel, PerAssemblyQty, ModifiedDate)" +
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) ")
+    # Execute the query
+    cursor.execute(query, (bill_of_mats.BillOfMaterialsID, bill_of_mats.ProductAssemblyID, bill_of_mats.ComponentID, bill_of_mats.StartDate, bill_of_mats.EndDate, bill_of_mats.UnitMeasureCode, bill_of_mats.BOMLevel, bill_of_mats.PerAssemblyQty, bill_of_mats.ModifiedDate))
+    dbConn.conn.commit() # commit the bill     
+    cursor.close()
     return {"BillOfMaterialsID": bill_of_mats.BillOfMaterialsID, "ProductAssemblyID": bill_of_mats.ProductAssemblyID, "ComponentID": bill_of_mats.ComponentID, "StartDate": bill_of_mats.StartDate, "EndDate": bill_of_mats.EndDate, "UnitMeasureCode": bill_of_mats.UnitMeasureCode, "BOMLevel": bill_of_mats.BOMLevel, "PerAssemblyQty": bill_of_mats.PerAssemblyQty, "ModifiedDate": bill_of_mats.ModifiedDate}
 
+# POST endpoint that creates a new purchasing vendor
 def create_vendor(vendor: models.Purchasing_Vendor): 
     # Create Pydantic model instance
     cursor = dbConn.conn.cursor() # create a cursor object using the connection
