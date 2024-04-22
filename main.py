@@ -2,8 +2,6 @@ from itertools import product
 from fastapi import FastAPI, HTTPException, Depends, status, Query, Path
 from typing import List, Optional
 from datetime import datetime as dt
-from sqlalchemy.exc import IntegrityError
-
 
 # Caching call responses
 from fastapi.responses import Response
