@@ -101,7 +101,7 @@ def add_user(response: Response, id: int, username: str):
         return created_user
     except Exception as e:
         if created_user is None or created_user == "":
-            raise HTTPException(status_code=400, detail="Username must be provided.")
+            raise HTTPException(status_code=404, detail="User is not found.")
         if e == "Duplicate entry":
             raise HTTPException(status_code=400, detail="Duplicate Entry Error: {e}")
         else:
@@ -124,7 +124,7 @@ def add_vendor(response: Response ,business_entity_id: int, name: str, credit_ra
         return created_vendor # needs to return type obj or dict to be valid
     except Exception as e:
         if created_vendor is None or created_vendor == "":
-            raise HTTPException(status_code=400, detail=f"Name must be provided. Value entered: {name}")
+            raise HTTPException(status_code=404, detail=f"Vendor not found.")
         if e == "Duplicate entry":
             raise HTTPException(status_code=400, detail=f"Duplicate Entry Error: {e}")
         else:
@@ -135,35 +135,51 @@ def add_vendor(response: Response ,business_entity_id: int, name: str, credit_ra
 # PUT endpoints
 #----------------------------------------------------------
 
-@app.put("/update-vendor-active-flag/{business_entity_id}/{active_flag}")
+# PUT endpoint to update the active flag of a vendor
+@app.put("/update-active-flag/{active_flag}/vendor-id/{business_entity_id}") # pydantic model not used because its required to use all fields
 def update_vendor_active_flag(business_entity_id: int, active_flag: int):
-    vendor = models.Purchasing_Vendor(BusinessEntityID=business_entity_id, ActiveFlag=active_flag)
     try:
-        updated = crud.update_vendor_active_flag(vendor)
+        updated = crud.update_vendor_active_flag(business_entity_id, active_flag)
         return updated
     except HTTPException as e:
         if e.status_code == 404:
             raise HTTPException(status_code=404, detail="Vendor not found.")
         else:
-            raise HTTPException(status_code=400, detail="Error: {e}")
-        return {"item"}
+            raise HTTPException(status_code=400, detail=f"Error: {e}")
 
-@app.put("/product_price/{product_id}", response_model=models.Products)
+@app.put("/update-credit-card/{business_entity_id}", response_model=models.Sales_PersonCreditCard)
 # SQL (UPDATE)
-def update_product_price(product_id: int, price: float):
-    crud.update_product_price(product_id, price)
-    if product_id <= 0:
-        raise HTTPException(status_code=400, detail="Product ID must be greater than 0.")
-        return {"item"}
+def update_person_credit_card(business_entity_id: int, credit_card_id: int):
+    person_credit_card = models.Sales_PersonCreditCard(
+        BusinessEntityID=business_entity_id, 
+        CreditCardID=credit_card_id, 
+        ModifiedDate=dt.now().isoformat()  # Convert datetime to ISO 8601 string
+    )
+    try:
+        updated = crud.update_person_credit_card(person_credit_card)
+        return updated
+    except HTTPException as e:
+        if e.status_code == 404:
+            raise HTTPException(status_code=404, detail="Person or Credit Card not found.")
+        else:
+            raise HTTPException(status_code=400, detail=f"Error: {e}")
     
 #----------------------------------------------------------
 # DELETE endpoints
 #----------------------------------------------------------
 
-@app.delete("/delete-job-candidate/{jobcandidate_id}", response_model=models.HumanResources_JobCandidate)
+@app.delete("/delete-job-candidate/{jobcandidate_id}")
 # SQL (DELETE)
 def delete_job_candidate(jobcandidate_id: int):
     crud.delete_jobcandidate(jobcandidate_id)
-    if jobcandidate_id not in models.HumanResources_JobCandidate:
-        raise HTTPException(status_code=400, detail="Job Candidate not found.")
+    if jobcandidate_id is None:
+        raise HTTPException(status_code=404, detail="Job Candidate not found.")
+        return {"item"}
+    
+@app.delete("/delete-employee/{business_entity_id}")
+# SQL (DELETE)
+def delete_employee(business_entity_id: int):
+    crud.delete_employee(business_entity_id)
+    if business_entity_id is None:
+        raise HTTPException(status_code=404, detail="Employee not found.")
         return {"item"}

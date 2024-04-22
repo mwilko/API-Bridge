@@ -49,8 +49,30 @@ class Purchasing_Vendor(BaseModel):
     PurchasingWebServiceURL: str
     ModifiedDate: str
 
+class Sales_PersonCreditCard(BaseModel):
+    BusinessEntityID: int
+    CreditCardID: int
+    ModifiedDate: str
+
 class HumanResources_JobCandidate(BaseModel):
     JobCandidateID: int
     BusinessEntityID: int
     Resume: str
     ModifiedDate: str
+
+class HumanResources_Employee(BaseModel):
+    BusinessEntityID: int
+    NationalIDNumber: str
+    LoginID: str
+    OrganizationNode: str
+    OrganizationLevel: int
+    JobTitle: str
+    BirthDate: dt
+    MaritalStatus: str
+    HireDate: dt
+    SalariedFlag: int
+    VacationHours: int
+    SickLeaveHours: int
+    CurrentFlag: int
+    rowguid: str
+    ModifiedDate: dt

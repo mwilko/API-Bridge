@@ -57,22 +57,27 @@ def create_vendor(vendor: models.Purchasing_Vendor):
 # PUT endpoints
 #----------------------------------------------------------
 
-def update_vendor_active_flag(vendor: models.Purchasing_Vendor):
+# PUT endpoint that updates the active flag of a vendor
+def update_vendor_active_flag(business_entity_id: int, active_flag: bool):
     cursor = dbConn.conn.cursor()
-    query = ("UPDATE Purchasing_Vendor SET ActiveFlag = %s WHERE BusinessEntityID = %s")
-    cursor.execute(query, (vendor.ActiveFlag, vendor.BusinessEntityID))
-    cursor.close()
+    current_date = dt.now().strftime('%Y-%m-%d %H:%M:%S')
+    query = "UPDATE Purchasing_Vendor SET ActiveFlag = %s, ModifiedDate = %s WHERE BusinessEntityID = %s"
+    cursor.execute(query, (active_flag, current_date, business_entity_id))
     dbConn.conn.commit()
-    return {"BusinessEntityID": vendor.BusinessEntityID, "ActiveFlag": vendor.ActiveFlag}
+    cursor.close()
 
-# PUT endpoint that updates the price of a specific product
-def update_product_price(product_id: int, price: float):
-    cursor = dbConn.conn.cursor() # create a cursor object using the connection
-    # Update the price of a product in the database
-    query = ("UPDATE Production_Product SET ListPrice=%s WHERE ProductID=%s")
-    cursor.execute(query, (price, product_id))
-    cursor.close() # closes the cursor object (db session)
-    return {"message": "Price updated successfully"}
+    return {"BusinessEntityID": business_entity_id, "ActiveFlag": active_flag, "ModifiedDate": current_date}
+
+# PUT endpoint that updates the credit card of a business entity
+def update_person_credit_card(person_credit_card: models.Sales_PersonCreditCard):
+    cursor = dbConn.conn.cursor()
+    query = "UPDATE Sales_PersonCreditCard SET CreditCardID = %s, ModifiedDate = %s WHERE BusinessEntityID = %s"
+    cursor.execute(query, (person_credit_card.CreditCardID, person_credit_card.ModifiedDate, person_credit_card.BusinessEntityID))
+    dbConn.conn.commit()
+    cursor.close()
+
+    # Return the updated Sales_PersonCreditCard instance
+    return person_credit_card
 
 #----------------------------------------------------------
 # DELETE endpoints
@@ -80,9 +85,23 @@ def update_product_price(product_id: int, price: float):
 
 # DELETE endpoint that deletes a specific product
 def delete_jobcandidate(jobcandidate_id: int):
-    # Delete a product from the database
-    cursor = dbConn.conn.cursor() # create a cursor object using the connection
-    query = ("DELETE FROM HumanResources_JobCandidate WHERE JobCandidateID=%s")
-    cursor.execute(query, (jobcandidate_id))
-    cursor.close() # closes the cursor object (db session)
-    return {"message": "Job Candidate deleted successfully"}
+    cursor = dbConn.conn.cursor()
+    query = "DELETE FROM HumanResources_JobCandidate WHERE JobCandidateID = %s"
+    cursor.execute(query, (jobcandidate_id,))  # Note the comma after jobcandidate_id
+    dbConn.conn.commit()
+    cursor.close()
+    return {"JobCandidateID": jobcandidate_id} # return the deleted job candidate's JobCandidateID
+
+# DELETE endpoint that deletes a specific employee
+# Companies could keep the record up to six years (For possible legal reasons)
+def delete_employee(business_entity_id: int):
+    cursor = dbConn.conn.cursor()
+    # constaints are set in the database to delete the records in the related tables
+    query = "DELETE FROM HumanResources_EmployeeDepartmentHistory WHERE BusinessEntityID = %s"
+    cursor.execute(query, (business_entity_id,))
+    query = "DELETE FROM HumanResources_EmployeePayHistory WHERE BusinessEntityID = %s"
+    cursor.execute(query, (business_entity_id,))
+    query = "DELETE FROM HumanResources_Employee WHERE BusinessEntityID = %s"
+    cursor.execute(query, (business_entity_id,))
+    dbConn.conn.commit()
+    cursor.close()
