@@ -41,7 +41,7 @@ class Purchasing_Vendor(BaseModel):
     CreditRating: int
     PreferredVendorStatus: int
     ActiveFlag: int
-    PurchasingWebServiceURL: str
+    PurchasingWebServiceURL: Optional[str]
     ModifiedDate: str
 
 # Sales Person Credit Card table

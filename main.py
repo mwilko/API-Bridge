@@ -59,7 +59,7 @@ def product_inventory(response: Response):
         return product_inventory_list  # return list directly
     except HTTPException as e:
         if product_inventory_list is None:
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise HTTPException(status_code=404, detail="No Product Inventory found...")
         else:
             return {"error": str(e.detail)}, e.status_code
             # Found a way to return the error message and status code with help from this source:
@@ -89,7 +89,7 @@ def get_sales_order_details(response: Response, modified_date: dt = Path(..., de
         ]
     except HTTPException as e:
         if order_details is None:
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise HTTPException(status_code=404, detail="No Order Details found...")
         else:
             return {"error": str(e.detail)}, e.status_code
     # cache-control header, not cachable
