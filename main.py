@@ -169,7 +169,7 @@ def update_person_credit_card(response: Response, business_entity_id: int, credi
         return updated
     except HTTPException as e:
         if updated is None or updated == "":
-            raise HTTPException(status_code=404, detail="Person or Credit Card not found.")
+            raise HTTPException(status_code=404, detail="Credit Card not found.")
         else:
             return {"error": str(e.detail)}, e.status_code
     
