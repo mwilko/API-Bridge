@@ -62,9 +62,12 @@ def product_inventory(response: Response):
             raise HTTPException(status_code=404, detail="Product not found")
         else:
             return {"error": str(e.detail)}, e.status_code
+            # Found a way to return the error message and status code with help from this source:
+            #https://stackoverflow.com/questions/72831952/how-do-i-integrate-custom-exception-handling-with-the-fastapi-exception-handling 
+
 
 @app.get("/sales-order-details/{modified_date}", response_model=List[models.Sales_SalesOrderDetail], status_code=200) # status code 200 = OK
-def get_sales_order_details(response: Response, modified_date: dt = Path(..., description="Format: YYYY-MM-DD HH:MM:SS")):
+def get_sales_order_details(response: Response, modified_date: dt = Path(..., description="Format: YYYY-MM-DD")):
     try:
         formatted_date = modified_date.strftime('%Y-%m-%d')  # Format the date to only include year, month, and day
         order_details = crud.product_sales(formatted_date)  # Pass the formatted date
@@ -100,7 +103,7 @@ def get_sales_order_details(response: Response, modified_date: dt = Path(..., de
 # POST endpoint to create a new user
 @app.post("/add-bill-of-materials/{bill_of_materials_id}", status_code=201) # status code 201 = created
 def add_bill_of_materials(response: Response, bill_of_materials_id: int, component_id: int, unit_measure_code: str,
-     bom_level: int, per_assembly_qty: int, start_date: dt = Path(..., description="Format: YYYY-MM-DD HH:MM:SS"), product_assembly_id: int = Query(None), end_date: dt = Query(None)):
+     bom_level: int, per_assembly_qty: int, start_date: dt = Query(..., description="Format: YYYY-MM-DD HH:MM:SS"), product_assembly_id: int = Query(None), end_date: dt = Query(None)):
     
     bill_of_mats = models.Production_BillOfMaterials(BillOfMaterialsID=bill_of_materials_id, ProductAssemblyID=product_assembly_id, ComponentID=component_id, StartDate=start_date,
                 EndDate=end_date, UnitMeasureCode=unit_measure_code, BOMLevel=bom_level, PerAssemblyQty=per_assembly_qty, ModifiedDate=f'{dt.now().strftime("%Y-%m-%d %H:%M:%S")}')
@@ -117,7 +120,7 @@ def add_bill_of_materials(response: Response, bill_of_materials_id: int, compone
 # added functionality, may need to edit for better scalability
 @app.post("/vendors/{business_entity_id}", response_model=models.Purchasing_Vendor, status_code=201) # status code 201 = created
 # SQL (INSERT)
-def add_vendor(response: Response ,business_entity_id: int, name: str, credit_rating: int, preferered_vendor_status: int, active_flag: int = Query(1), web_service: str = Query("NULL")): # parameters, name is required, web_service is optional
+def add_vendor(response: Response ,business_entity_id: int, name: str, credit_rating: int, preferered_vendor_status: int, active_flag: int = Query(1), web_service: str = Query(None)): # parameters, name is required, web_service is optional
     account_number = name.replace(" ", "") # removes spaces from the name for the account number
 
     # formatting account number so its uppercase and formatting datetime.now() so miliseconds are removed
